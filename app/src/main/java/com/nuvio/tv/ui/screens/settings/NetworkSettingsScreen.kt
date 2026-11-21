@@ -44,6 +44,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -57,6 +58,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -68,6 +70,8 @@ import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.nuvio.tv.R
+import com.nuvio.tv.core.profile.ProfileSelectionTimeout
+import com.nuvio.tv.core.profile.ProfileSelectionTimeoutStore
 import com.nuvio.tv.data.local.Dv7HandlingMode
 import com.nuvio.tv.data.local.InternalPlayerEngine
 import com.nuvio.tv.domain.model.ExperienceMode
@@ -91,6 +95,19 @@ private interface ClearCwCacheEntryPoint {
 @dagger.hilt.InstallIn(dagger.hilt.components.SingletonComponent::class)
 private interface ProfileManagerEntryPoint {
     fun profileManager(): com.nuvio.tv.core.profile.ProfileManager
+}
+
+@Composable
+private fun profileSelectionTimeoutLabel(minutes: Int): String = when {
+    minutes <= 0 -> stringResource(R.string.advanced_profile_selection_timeout_off)
+    minutes < 60 -> pluralStringResource(R.plurals.ambient_mode_timeout_minutes, minutes, minutes)
+    else -> {
+        val hours = minutes / 60
+        stringResource(
+            if (hours == 1) R.string.cache_duration_hour_one else R.string.cache_duration_hour_other,
+            hours
+        )
+    }
 }
 
 private enum class NetworkTestState { Idle, TestingLatency, TestingDownload, Done, Error }
@@ -509,6 +526,11 @@ fun AdvancedSettingsContent(
         }
 
         item(key = "startup_settings") {
+            val profileSelectionTimeoutStore = remember { ProfileSelectionTimeoutStore(context) }
+            var profileSelectionTimeoutMinutes by remember {
+                mutableIntStateOf(profileSelectionTimeoutStore.timeoutMinutes)
+            }
+            var showProfileSelectionTimeoutDialog by remember { mutableStateOf(false) }
             SettingsGroupCard(
                 modifier = Modifier.fillMaxWidth(),
                 title = stringResource(R.string.advanced_section_startup)
@@ -541,6 +563,12 @@ fun AdvancedSettingsContent(
                         }
                     }
                 )
+                SettingsActionRow(
+                    title = stringResource(R.string.advanced_profile_selection_timeout),
+                    subtitle = stringResource(R.string.advanced_profile_selection_timeout_subtitle),
+                    value = profileSelectionTimeoutLabel(profileSelectionTimeoutMinutes),
+                    onClick = { showProfileSelectionTimeoutDialog = true }
+                )
 
                 val confirmExitEnabled by profileManager.confirmExitEnabled.collectAsState()
                 SettingsToggleRow(
@@ -552,6 +580,23 @@ fun AdvancedSettingsContent(
                             profileManager.setConfirmExitEnabled(!confirmExitEnabled)
                         }
                     }
+                )
+            }
+            if (showProfileSelectionTimeoutDialog) {
+                SettingsSingleChoiceDialog(
+                    title = stringResource(R.string.advanced_profile_selection_timeout),
+                    subtitle = stringResource(R.string.advanced_profile_selection_timeout_subtitle),
+                    options = ProfileSelectionTimeout.OPTIONS_MINUTES.map { minutes ->
+                        SettingsPickerOption(minutes, profileSelectionTimeoutLabel(minutes))
+                    },
+                    selectedValue = profileSelectionTimeoutMinutes,
+                    onOptionSelected = { minutes ->
+                        profileSelectionTimeoutStore.timeoutMinutes = minutes
+                        profileSelectionTimeoutMinutes = minutes
+                        showProfileSelectionTimeoutDialog = false
+                    },
+                    onDismiss = { showProfileSelectionTimeoutDialog = false },
+                    maxHeight = 360.dp
                 )
             }
         }

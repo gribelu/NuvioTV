@@ -149,6 +149,7 @@ import com.nuvio.tv.core.deeplink.DeepLinkParser
 import com.nuvio.tv.core.player.PlayerWindowBackdrop
 import com.nuvio.tv.core.party.PartyRepository
 import com.nuvio.tv.core.profile.ProfileManager
+import com.nuvio.tv.core.profile.ProfileSelectionTimeoutStore
 import com.nuvio.tv.core.sync.ProfileSyncService
 import com.nuvio.tv.core.sync.StartupSyncService
 import com.nuvio.tv.core.tracking.TrackingProgressRefreshCoordinator
@@ -355,6 +356,14 @@ open class MainActivity : ComponentActivity() {
     /** True until the first onResume after onCreate completes. */
     private var isFirstResumeAfterCreate = false
 
+    private val profileSelectionTimeoutStore by lazy { ProfileSelectionTimeoutStore(applicationContext) }
+
+    /** The profile selection timeout ran out before this launch, so no profile is loaded for it. */
+    private var profileSelectionTimedOutAtLaunch = false
+
+    /** Counts the returns to the foreground that came after the profile selection timeout ran out. */
+    private val profileSelectionTimeoutReturns = mutableIntStateOf(0)
+
     @OptIn(ExperimentalTvMaterial3Api::class, ExperimentalFoundationApi::class)
     override fun attachBaseContext(newBase: Context) {
         val tag = LocaleCache.localeTag.takeIf { it != LocaleCache.UNSET }
@@ -376,7 +385,10 @@ open class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalFoundationApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
-        super.onCreate(savedInstanceState)
+        // The profile selection timeout ran out while Nuvio was away: start like a fresh launch
+        // instead of restoring the previous viewer's session and screens.
+        profileSelectionTimedOutAtLaunch = profileSelectionTimeoutStore.hasExpired()
+        super.onCreate(savedInstanceState.takeUnless { profileSelectionTimedOutAtLaunch })
         isFirstResumeAfterCreate = true
         window?.setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
 
@@ -478,7 +490,8 @@ open class MainActivity : ComponentActivity() {
             var profileSwitchedManually by remember { mutableStateOf(false) }
             val shouldAutoSelectProfile = rememberLastProfileEnabled &&
                 hasEverSelectedProfile && !activeProfileHasPin &&
-                !hasSelectedProfileThisSession && !profileSwitchedManually
+                !hasSelectedProfileThisSession && !profileSwitchedManually &&
+                !profileSelectionTimedOutAtLaunch
             if (shouldAutoSelectProfile && !splashTriggered) {
                 splashTriggered = true
                 hasSelectedProfileThisSession = true
@@ -492,6 +505,26 @@ open class MainActivity : ComponentActivity() {
                     activeProfile?.profileBackgroundId?.let {
                         profileBackgroundRepository.loadSelectedAndPreload(it)
                     }
+                }
+            }
+
+            val returnToProfileSelection = {
+                startupSession++
+                splashTriggered = false
+                profileSwitchedManually = true
+                focusedSplashColor = null
+                focusedSplashBgUrl = null
+                focusedSplashCacheKey = null
+                focusedSplashTheme = null
+                hasSelectedProfileThisSession = false
+            }
+            val timedOutReturns = profileSelectionTimeoutReturns.intValue
+            LaunchedEffect(timedOutReturns) {
+                if (
+                    timedOutReturns > 0 && hasSelectedProfileThisSession &&
+                    (profiles.size > 1 || activeProfileHasPin)
+                ) {
+                    returnToProfileSelection()
                 }
             }
 
@@ -1186,6 +1219,8 @@ open class MainActivity : ComponentActivity() {
                             finishAffinity()
                             finishAndRemoveTask()
                             if (confirmExitEnabled) {
+                                // onStop never runs for a killed process.
+                                profileSelectionTimeoutStore.markBackgrounded()
                                 // Kill the process to free RAM on low-memory devices.
                                 android.os.Process.killProcess(android.os.Process.myPid())
                             }
@@ -1210,16 +1245,7 @@ open class MainActivity : ComponentActivity() {
                         onOpenUnknownSources = updateViewModel::openUnknownSourcesSettings,
                         onFeedbackShown = updateViewModel::consumeFeedbackMessage
                     ) {
-                        val handleSwitchProfile = {
-                            startupSession++
-                            splashTriggered = false
-                            profileSwitchedManually = true
-                            focusedSplashColor = null
-                            focusedSplashBgUrl = null
-                            focusedSplashCacheKey = null
-                            focusedSplashTheme = null
-                            hasSelectedProfileThisSession = false
-                        }
+                        val handleSwitchProfile = returnToProfileSelection
                         Box(modifier = Modifier.fillMaxSize()) {
                             CompositionLocalProvider(LocalNavViewModelStoreOwner provides navViewModelStoreOwner) {
                                 if (modernSidebarEnabled) {
@@ -1432,6 +1458,12 @@ open class MainActivity : ComponentActivity() {
         // loader instantly with no episode-list flash. No-op unless a series episode is being
         // tracked; onActivityResult keeps it for a completion or dismisses it otherwise.
         externalPlaybackTracker.raiseAutoNextOverlayOnReturn()
+        // A launch that timed out was already handled in onCreate; its count finds no profile
+        // selected yet and changes nothing.
+        if (profileSelectionTimeoutStore.hasExpired()) {
+            profileSelectionTimeoutReturns.intValue++
+        }
+        profileSelectionTimeoutStore.clearBackgrounded()
         super.onStart()
         startupSyncService.startPeriodicSurfacePulls()
         androidTvChannelSyncService.onForegroundChanged(true)
@@ -1439,6 +1471,12 @@ open class MainActivity : ComponentActivity() {
 
     override fun onStop() {
         externalPlaybackTracker.onExternalPlayerCoveredApp()
+        // Watching in an external player is not time away from Nuvio.
+        if (externalPlaybackTracker.isTracking) {
+            profileSelectionTimeoutStore.clearBackgrounded()
+        } else {
+            profileSelectionTimeoutStore.markBackgrounded()
+        }
         super.onStop()
         startupSyncService.stopPeriodicSurfacePulls()
         // App going to background (e.g. user returning to the launcher): reconcile the
