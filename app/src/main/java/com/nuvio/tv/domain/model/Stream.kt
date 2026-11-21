@@ -5,6 +5,7 @@ import com.nuvio.tv.core.debrid.DebridProviders
 import com.nuvio.tv.data.mediaserver.ServerPlaybackTarget
 import kotlin.math.roundToInt
 import kotlinx.serialization.Serializable
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 /**
  * Represents a stream source from a Stremio addon
@@ -210,6 +211,10 @@ fun Number?.toStreamAudioDelayMs(): Int? =
 fun String?.toStreamAudioDelayLanguage(): String? =
     this?.trim()?.takeIf { it.isNotEmpty() && it.length <= 35 }
 
+/** Normalizes a `behaviorHints.loadingStatusUrl` value: an absolute http(s) URL, anything else dropped. */
+fun String?.toStreamLoadingStatusUrl(): String? =
+    this?.trim()?.takeIf { it.toHttpUrlOrNull() != null }
+
 @Immutable
 data class StreamBehaviorHints(
     val notWebReady: Boolean?,
@@ -222,7 +227,9 @@ data class StreamBehaviorHints(
     // Extra audio delay for this stream (ms, >0 = audio later), added on top of the user's/device delay.
     val audioDelayMs: Int? = null,
     // When set, audioDelayMs only applies to audio and embedded subtitle tracks in this language.
-    val audioDelayLanguage: String? = null
+    val audioDelayLanguage: String? = null,
+    // Polled by the internal player while the stream loads; its message/progress fill the loading overlay.
+    val loadingStatusUrl: String? = null
 )
 
 @Immutable

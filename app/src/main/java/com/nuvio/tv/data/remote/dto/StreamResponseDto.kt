@@ -98,7 +98,8 @@ data class BehaviorHintsDto(
     @Json(name = "videoSize") val videoSize: Long? = null,
     @Json(name = "filename") val filename: String? = null,
     @Json(name = "audioDelayMs") val audioDelayMs: Double? = null,
-    @Json(name = "audioDelayLanguage") val audioDelayLanguage: String? = null
+    @Json(name = "audioDelayLanguage") val audioDelayLanguage: String? = null,
+    @Json(name = "loadingStatusUrl") val loadingStatusUrl: String? = null
 )
 
 @JsonClass(generateAdapter = true)

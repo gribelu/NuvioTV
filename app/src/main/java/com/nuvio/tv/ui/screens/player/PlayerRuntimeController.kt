@@ -621,6 +621,9 @@ class PlayerRuntimeController(
     internal var recordedPluginPlayIdentity: String? = null
     // Per-device delay + current stream's behaviorHints.audioDelayMs + the user's tweak on that stream.
     internal var audioDelayParts: AudioDelayParts = AudioDelayParts().withStream(navigationArgs.audioDelayMs ?: 0, navigationArgs.audioDelayLanguage)
+    // Current stream's behaviorHints.loadingStatusUrl, polled while it loads (PlayerRuntimeControllerAddonLoadingStatus).
+    internal var currentLoadingStatusUrl: String? = navigationArgs.loadingStatusUrl
+    internal var addonLoadingStatusJob: Job? = null
     internal var hasAppliedRememberedAudioSelection: Boolean = false
     internal var hasInitializedAudioAmplificationForSession: Boolean = false
     internal var hasInitializedCenterMixForSession: Boolean = false

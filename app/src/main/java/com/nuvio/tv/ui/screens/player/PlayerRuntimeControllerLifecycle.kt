@@ -84,6 +84,7 @@ internal fun PlayerRuntimeController.releasePlayer(
     subtitleTimingRefreshJob = null
     playbackPreparationJob?.cancel()
     playbackPreparationJob = null
+    stopAddonLoadingStatusPolling()
     traktMappingJob?.cancel()
     traktMappingJob = null
     delayMpvResumeSeekUntilVideoTrack = false

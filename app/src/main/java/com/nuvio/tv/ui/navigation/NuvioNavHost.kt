@@ -693,7 +693,8 @@ private fun PlaybackNavHost(
                                 contentLanguage = playbackInfo.contentLanguage,
                                 profileId = playbackInfo.profileId,
                                 audioDelayMs = playbackInfo.audioDelayMs,
-                                audioDelayLanguage = playbackInfo.audioDelayLanguage
+                                audioDelayLanguage = playbackInfo.audioDelayLanguage,
+                                loadingStatusUrl = playbackInfo.loadingStatusUrl
                             )
                         )
                     }
@@ -737,6 +738,7 @@ private fun PlaybackNavHost(
                                 profileId = playbackInfo.profileId,
                                 audioDelayMs = playbackInfo.audioDelayMs,
                                 audioDelayLanguage = playbackInfo.audioDelayLanguage,
+                                loadingStatusUrl = playbackInfo.loadingStatusUrl,
                                 fromLinkCache = playbackInfo.fromLinkCache
                             )
                         ) {
@@ -906,6 +908,11 @@ private fun PlaybackNavHost(
                     defaultValue = null
                 },
                 navArgument("audioDelayLanguage") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+                navArgument("loadingStatusUrl") {
                     type = NavType.StringType
                     nullable = true
                     defaultValue = null

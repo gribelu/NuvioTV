@@ -509,6 +509,7 @@ class StreamScreenViewModel @Inject constructor(
                                 contentLanguage = cached.contentLanguage ?: contentLanguage,
                                 audioDelayMs = cached.audioDelayMs,
                                 audioDelayLanguage = cached.audioDelayLanguage,
+                                loadingStatusUrl = cached.loadingStatusUrl,
                                 addonName = cached.addonName,
                                 addonLogo = cached.addonLogo,
                                 streamDescription = cached.streamDescription,
@@ -1681,7 +1682,8 @@ class StreamScreenViewModel @Inject constructor(
             sources = stream.sources,
             contentLanguage = contentLanguage,
             audioDelayMs = stream.behaviorHints?.audioDelayMs,
-            audioDelayLanguage = stream.behaviorHints?.audioDelayLanguage
+            audioDelayLanguage = stream.behaviorHints?.audioDelayLanguage,
+            loadingStatusUrl = stream.behaviorHints?.loadingStatusUrl
         )
         StreamSidecarSubtitles.set(playbackUrlFor(playbackInfo), stream.subtitles)
 
@@ -1703,6 +1705,7 @@ class StreamScreenViewModel @Inject constructor(
                     year = year,
                     audioDelayMs = playbackInfo.audioDelayMs,
                     audioDelayLanguage = playbackInfo.audioDelayLanguage,
+                    loadingStatusUrl = playbackInfo.loadingStatusUrl,
                     addonName = playbackInfo.addonName,
                     addonLogo = playbackInfo.addonLogo,
                     streamDescription = playbackInfo.streamDescription
@@ -2240,6 +2243,7 @@ data class StreamPlaybackInfo(
     val contentLanguage: String? = null,
     val audioDelayMs: Int? = null,
     val audioDelayLanguage: String? = null,
+    val loadingStatusUrl: String? = null,
     val isServerStream: Boolean = false,
     /** The link was taken from the reuse-last-link cache, not picked fresh from add-ons. */
     val fromLinkCache: Boolean = false

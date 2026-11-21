@@ -677,6 +677,7 @@ internal fun PlayerRuntimeController.recordDistinctPluginPlay(
 private fun PlayerRuntimeController.applyStreamMetadata(stream: Stream) {
     currentStreamBingeGroup = stream.behaviorHints?.bingeGroup
     applyStreamAudioDelay(stream.behaviorHints?.audioDelayMs, stream.behaviorHints?.audioDelayLanguage)
+    currentLoadingStatusUrl = stream.behaviorHints?.loadingStatusUrl
     currentVideoHash = stream.behaviorHints?.videoHash
     currentVideoSize = stream.behaviorHints?.videoSize
     streamSubtitles = stream.subtitles
@@ -785,6 +786,7 @@ private fun PlayerRuntimeController.persistSelectedStreamForReuse(
             year = year,
             audioDelayMs = stream.behaviorHints?.audioDelayMs,
             audioDelayLanguage = stream.behaviorHints?.audioDelayLanguage,
+            loadingStatusUrl = stream.behaviorHints?.loadingStatusUrl,
             addonName = stream.addonName,
             addonLogo = stream.addonLogo,
             streamDescription = stream.description
